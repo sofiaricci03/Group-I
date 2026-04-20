@@ -11,6 +11,7 @@ let isLampActive = false;
 let currentLight = 50.0; // Inizia con poca luce
 
 // Timer per il decadimento ritardato
+// Questi timer tengono traccia di quando la pompa o la lampada sono state spente per iniziare il decadimento dopo 15 secondi
 let pumpOffTime = null;
 let lampOffTime = null;
 
@@ -19,20 +20,23 @@ servient.start().then((WoT) => {
     // --- THING 1: SoilMoistureSensor ---
     WoT.produce({
         title: "SoilMoistureSensor",
+        //definiamo le proprietà dell'umidità overo sarà un numero con unità percentuale e l'azione per aggiornare lo stato della pompa
         properties: { moisture: { type: "number", unit: "percent" } },
         actions: {
             updatePumpStatus: { input: { type: "boolean" } }
         }
     }).then((thing) => {
-        thing.setPropertyReadHandler("moisture", async () => {
+        thing.setPropertyReadHandler("moisture", async () => {  //ogni volta che arrriva una richiesta di lettura pe rl'umidità, restituisce il valore attuale
             return currentMoisture; // Valore stabile, niente random noise
         });
 
         //Estrazione del valore reale dall'InteractionOutput
+        //setActionHandler è usato per definire cosa succede quando arriva una richiesta di azione per "updatePumpStatus" 
+        // L'input è un booleano che indica se la pompa è attiva o no, e aggiorna lo stato globale isPumpActive di conseguenza. Inoltre, stampa lo stato aggiornato della pompa nel terminale.
         thing.setActionHandler("updatePumpStatus", async (params) => {
             const val = await params.value(); // Estrae true o false
             isPumpActive = val; 
-            console.log("📢 [SIMULATORE] Stato pompa aggiornato:", isPumpActive);
+            console.log("[SIMULATORE] Stato pompa aggiornato:", isPumpActive);
             return isPumpActive;
         });
 
@@ -55,7 +59,7 @@ servient.start().then((WoT) => {
         thing.setActionHandler("updateLampStatus", async (params) => {
             const val = await params.value();
             isLampActive = val;
-            console.log("📢 [SIMULATORE] Stato lampada aggiornato:", isLampActive);
+            console.log("[SIMULATORE] Stato lampada aggiornato:", isLampActive);
             return isLampActive;
         });
 
@@ -75,7 +79,7 @@ servient.start().then((WoT) => {
             }
             const timeSincePumpOff = Date.now() - pumpOffTime;
             if (timeSincePumpOff > 15000) { // Dopo 15 secondi inizia decadimento
-                currentMoisture = Math.max(0, currentMoisture - 0.15);
+                currentMoisture = Math.max(0, currentMoisture - 0.25);
             }
             // Altrimenti rimane stabile
         }

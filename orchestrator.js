@@ -4,6 +4,8 @@ const { HttpClientFactory } = require("@node-wot/binding-http");
 const servient = new Servient();
 servient.addClientFactory(new HttpClientFactory());
 
+//Ogni 5 secondi legge i dati (umidità e luce) e  li stampa a schermo nel terminale (facendoti vedere il resoconto)
+
 // Variabili di stato locale per evitare comandi duplicati
 let lastPumpStatus = null;
 let lastLampStatus = null;
@@ -29,7 +31,7 @@ async function start() {
     const lightSensor = await getThing(WoT, "http://localhost:8081/lightsensor");
     const smartLamp = await getThing(WoT, "http://localhost:8082/smartlamp");
 
-    console.log("🚀 ORCHESTRATORE CONNESSO E OPERATIVO!");
+    console.log("ORCHESTRATORE CONNESSO E OPERATIVO!");
 
     setInterval(async () => {
         try {
