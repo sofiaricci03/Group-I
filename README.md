@@ -1,4 +1,4 @@
-# 🌱 Smart-Plant-Care
+# 🌱 Smart Plant Care
 
 **Smart-Plant-Care** è un'applicazione basata sullo standard **Web of Things (WoT)** del W3C per il monitoraggio e la gestione automatizzata (simulata) di una serra o di una pianta domestica.
 
