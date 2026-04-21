@@ -60,4 +60,4 @@ http://localhost:3000
 ---
 
 ## Sviluppo e Stile (Tailwind CSS)
-Il progetto utilizza **Tailwind CSS v4** per la grafica. Se si modificano le classi nei file `.html`, è necessario ricompilare il file CSS.
+Il progetto utilizza **Tailwind CSS v4** per la grafica.
