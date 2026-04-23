@@ -2,6 +2,11 @@ let soilSensor, lightSensor, irrigationSystem, smartLamp;
 let isPumpOn = false;
 let isLampOn = false;
 
+// Temporizzatori per evitare conflitti visivi tra click manuali e aggiornamenti automatici
+// Memorizzano il timestamp (in millisecondi) dell'ultima volta in cui l'utente ha cliccato i toggle.
+let lastPumpActionTime = 0;
+let lastLampActionTime = 0;
+
 //la segunente funzione cerca nella pagina html l'elemento con id log e se esiste 
 function updateLog(msg) {
     const logElement = document.getElementById('log');
@@ -104,6 +109,39 @@ async function init() {
                     la.innerText = 'Luce adeguata';
                     la.style.color = '#666';
                 }
+
+                // --- SINCRONIZZAZIONE ATTUATORI  ---
+                // Questo blocco permette all'interfaccia web di accorgersi se l'orchestratore
+                // ha acceso o spento gli attuatori in background (in automatico).
+
+                // Aspettiamo almeno 2 secondi dall'ultimo comando manuale.
+                // Questo evita che l'interfaccia legga uno stato "vecchio" dal server appena dopo
+                // che l'utente ha cliccato, causando uno sfarfallio dell'interruttore.
+                if (irrigationSystem && (Date.now() - lastPumpActionTime > 2000)) {
+                    // Legge la proprietà 'status' che abbiamo aggiunto in actuators.js per sapere se la pompa è accesa o spenta
+                    const pRes = await irrigationSystem.readProperty('status');
+                    const realPumpStatus = await pRes.value();
+                    
+                    // Se lo stato reale (sul server) è diverso da quello che l'interfaccia sta attualmente mostrando
+                    if (realPumpStatus !== isPumpOn) {
+                        isPumpOn = realPumpStatus; // Aggiorna lo stato della variabile locale
+                        // Cambia l'immagine dell'interruttore per riflettere lo stato reale
+                        document.getElementById('pump-toggle-img').src = isPumpOn ? '/img/water-on.png' : '/img/off.png';
+                        // Aggiunge un messaggio al log per informare l'utente dell'intervento automatico
+                        updateLog(` [Automazione] Pompa impostata su: ${isPumpOn ? 'ON' : 'OFF'}`);
+                    }
+                }
+
+                if (smartLamp && (Date.now() - lastLampActionTime > 2000)) {
+                    // Esegue per la lampada la stessa  logica di sincronizzazione vista per la pompa
+                    const lRes = await smartLamp.readProperty('status');
+                    const realLampStatus = await lRes.value();
+                    if (realLampStatus !== isLampOn) {
+                        isLampOn = realLampStatus;
+                        document.getElementById('lamp-toggle-img').src = isLampOn ? '/img/light-on.png' : '/img/off.png';
+                        updateLog(` [Automazione] Lampada impostata su: ${isLampOn ? 'ON' : 'OFF'}`);
+                    }
+                }
             } catch (e) {
                 updateLog('⚠️ Errore durante il monitoraggio.');
             }
@@ -114,13 +152,15 @@ async function init() {
 }
 
 async function togglePump() {
+    // Registra il momento esatto in cui l'utente clicca il pulsante manuale.
+    // Questo dirà alla funzione di sincronizzazione di non aggiornare la UI per i prossimi 2 secondi.
+    lastPumpActionTime = Date.now();
     //isPumpOn è una variabile booleana che tiene traccia dello stato attuale della pompa (accesa o spenta).
     //Quando l'utente clicca sul pulsante per accendere o spegnere la pompa, questa funzione viene chiamata.
     isPumpOn = !isPumpOn;
     const img = document.getElementById('pump-toggle-img');
     
     //Per fornire un feedback visivo immediato, l'immagine del pulsante viene temporaneamente scalata
-    //  e resa semi-trasparente, creando un effetto di "pressione" quando viene cliccato.
     img.style.transform = 'scale(0.8)';
     img.style.opacity = '0.5';
     
@@ -135,7 +175,7 @@ async function togglePump() {
         try {
             await irrigationSystem.invokeAction('toggle', isPumpOn);    //invia il comando alla pompa per accenderla o spegnerla, a seconda del nuovo stato di isPumpOn
             await soilSensor.invokeAction('updatePumpStatus', isPumpOn);//aggiorna lo stato della pompa anche sul sensore di umidità(sensor.js), in modo che possa fornire consigli più accurati basati sul fatto che la pompa è accesa o spenta
-            updateLog(`Pompa impostata su: ${isPumpOn ? 'ON' : 'OFF'}`);//registra gli eventi di accensione e spegnimento della pompa nel log, indicando lo stato attuale
+            updateLog(` [Manuale] Pompa impostata su: ${isPumpOn ? 'ON' : 'OFF'}`);//registra gli eventi di accensione e spegnimento della pompa nel log, indicando lo stato attuale
         } catch (e) {
             updateLog('❌ Errore sincronizzazione pompa');
         }
@@ -143,6 +183,7 @@ async function togglePump() {
 }
 
 async function toggleLamp() {
+    lastLampActionTime = Date.now();
     isLampOn = !isLampOn;
     const img = document.getElementById('lamp-toggle-img');
     
@@ -158,7 +199,7 @@ async function toggleLamp() {
         try {
             await smartLamp.invokeAction('switch', isLampOn);
             await lightSensor.invokeAction('updateLampStatus', isLampOn);
-            updateLog(`Lampada: ${isLampOn ? 'ON' : 'OFF'}`);
+            updateLog(` [Manuale] Lampada impostata su: ${isLampOn ? 'ON' : 'OFF'}`);
         } catch (e) {
             updateLog('❌ Errore comando lampada');
         }
